@@ -1,9 +1,9 @@
 import os
 import requests
 
-API_KEY = os.getenv('ODDS_API_KEY')
-TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
-TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
+API_KEY = os.getenv('ODDS_API_KEY', '').strip()
+TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', '').strip()
+TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID', '').strip()
 
 BOOKMAKERS = 'draftkings,fanduel,betmgm,williamhill_us,fanatics,betrivers'
 SPORTS = ['baseball_mlb', 'basketball_wnba']
@@ -21,6 +21,8 @@ def send_telegram(message):
         response = requests.post(url, json=payload, timeout=10)
         if response.status_code != 200:
             print(f"Telegram API Error: {response.text}")
+        else:
+            print("Telegram alert sent successfully.")
     except Exception as e:
         print(f"Error sending telegram: {e}")
 
