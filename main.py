@@ -8,35 +8,30 @@ TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 BOOKMAKERS = 'draftkings,fanduel,betmgm,williamhill_us,fanatics,betrivers'
 SPORTS = ['baseball_mlb', 'basketball_wnba']
 
-GAME_MARKETS = 'h2h,spreads,totals'
-MLB_PROP_MARKETS = 'batter_hits,batter_runs_scored,batter_rbis,batter_total_bases,batter_home_runs,pitcher_strikeouts,batter_hits_runs_scored_rbis'
-WNBA_PROP_MARKETS = 'player_points,player_rebounds,player_assists,player_points_rebounds_assists,player_points_rebounds,player_points_assists,player_rebounds_assists'
+# The main odds endpoint only supports featured markets (h2h, spreads, totals)
+MARKETS = 'h2h,spreads,totals'
 
 def send_telegram(message):
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
         print("Telegram credentials missing.")
         return
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-    payload = {"chat_id": TELEGRAM_CHAT_ID, "text": message, "parse_mode": "Markdown"}
+    payload = {"chat_id": TELEGRAM_CHAT_ID, "text": message}
     try:
-        requests.post(url, json=payload, timeout=10)
+        response = requests.post(url, json=payload, timeout=10)
+        if response.status_code != 200:
+            print(f"Telegram API Error: {response.text}")
     except Exception as e:
         print(f"Error sending telegram: {e}")
 
 def scan_market():
     alerts = []
     for sport in SPORTS:
-        markets = GAME_MARKETS
-        if sport == 'baseball_mlb':
-            markets += ',' + MLB_PROP_MARKETS
-        elif sport == 'basketball_wnba':
-            markets += ',' + WNBA_PROP_MARKETS
-
         url = f"https://api.the-odds-api.com/v4/sports/{sport}/odds/"
         params = {
             'apiKey': API_KEY,
             'regions': 'us',
-            'markets': markets,
+            'markets': MARKETS,
             'oddsFormat': 'american',
             'bookmakers': BOOKMAKERS
         }
@@ -44,9 +39,11 @@ def scan_market():
         try:
             response = requests.get(url, params=params, timeout=15)
             if response.status_code != 200:
+                print(f"Odds API Error ({sport}): Status {response.status_code} - {response.text}")
                 continue
             events = response.json()
         except Exception as e:
+            print(f"Request exception for {sport}: {e}")
             continue
 
         for event in events:
@@ -82,7 +79,7 @@ def scan_market():
                 
                 diff = abs(best_val - worst_val)
                 if diff >= 15:
-                    alerts.append(f"🚨 *VA Discrepancy Found ({sport.upper()} - {m_key})*\n{matchup}\n*Target:* {name}\n*Best:* {best_book} (`{best_val}`)\n*Worst:* {worst_book} (`{worst_val}`)")
+                    alerts.append(f"🚨 VA Discrepancy Found ({sport.upper()} - {m_key})\n{matchup}\nTarget: {name}\nBest: {best_book} ({best_val})\nWorst: {worst_book} ({worst_val})")
 
     if alerts:
         for alert in alerts[:4]:
