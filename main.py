@@ -14,7 +14,7 @@ def send_telegram(message):
         print("Telegram credentials missing.")
         return
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-    payload = {"chat_id": TELEGRAM_CHAT_ID, "text": message}
+    payload = {"chat_id": TELEGRAM_CHAT_ID, "text": message, "parse_mode": "Markdown"}
     try:
         response = requests.post(url, json=payload, timeout=10)
         if response.status_code != 200:
@@ -63,19 +63,31 @@ def scan_market():
                     for outcome in market.get('outcomes', []):
                         name = outcome.get('name')
                         price = outcome.get('price')
+                        point = outcome.get('point')  # Crucial: capture point for spreads/totals
+                        
                         if price is not None:
                             try:
                                 int_price = int(price)
-                                key = (m_key, name)
+                                # Key includes point to prevent cross-line contamination
+                                if point is not None:
+                                    key = (m_key, name, point)
+                                else:
+                                    key = (m_key, name)
+                                    
                                 if key not in book_prices:
                                     book_prices[key] = {}
                                 book_prices[key][b_key] = int_price
                             except ValueError:
                                 continue
             
-            for (m_key, name), books in book_prices.items():
+            for key_tuple, books in book_prices.items():
                 if len(books) < 2:
                     continue
+                
+                m_key = key_tuple[0]
+                name = key_tuple[1]
+                point = key_tuple[2] if len(key_tuple) > 2 else None
+                
                 best_book = max(books, key=books.get)
                 worst_book = min(books, key=books.get)
                 best_val = books[best_book]
@@ -83,10 +95,12 @@ def scan_market():
                 
                 diff = abs(best_val - worst_val)
                 if diff >= 15:
-                    alerts.append(f"🚨 VA Discrepancy Found ({sport.upper()} - {m_key})\n{matchup}\nTarget: {name}\nBest: {best_book} ({best_val})\nWorst: {worst_book} ({worst_val})")
+                    point_str = f" ({point})" if point is not None else ""
+                    alerts.append(f"🚨 *Value Discrepancy Found* ({sport.upper()} - {m_key})\n{matchup}\nTarget: {name}{point_str}\nBest: `{best_book}` ({best_val:+d} if best_val > 0 else best_val)\nWorst: `{worst_book}` ({worst_val:+d} if worst_val > 0 else worst_val)")
 
     if alerts:
-        for alert in alerts[:4]:
+        # Iterate through all discovered discrepancies without arbitrary caps
+        for alert in alerts:
             send_telegram(alert)
     else:
         send_telegram("ℹ️ VA Scanner check complete: All lines tightly aligned.")
