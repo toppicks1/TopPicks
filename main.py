@@ -7,8 +7,6 @@ TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID', '').strip()
 
 BOOKMAKERS = 'draftkings,fanduel,betmgm,williamhill_us,fanatics,betrivers'
 SPORTS = ['baseball_mlb', 'basketball_wnba']
-
-# The main odds endpoint only supports featured markets (h2h, spreads, totals)
 MARKETS = 'h2h,spreads,totals'
 
 def send_telegram(message):
@@ -27,6 +25,10 @@ def send_telegram(message):
         print(f"Error sending telegram: {e}")
 
 def scan_market():
+    if not API_KEY:
+        print("Odds API Key missing.")
+        return
+
     alerts = []
     for sport in SPORTS:
         url = f"https://api.the-odds-api.com/v4/sports/{sport}/odds/"
