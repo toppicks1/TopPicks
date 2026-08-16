@@ -63,7 +63,7 @@ def scan_market():
                     for outcome in market.get('outcomes', []):
                         name = outcome.get('name')
                         price = outcome.get('price')
-                        point = outcome.get('point')  # Crucial: capture point for spreads/totals
+                        point = outcome.get('point')  # Capture point for spreads/totals
                         
                         if price is not None:
                             try:
@@ -96,10 +96,16 @@ def scan_market():
                 diff = abs(best_val - worst_val)
                 if diff >= 15:
                     point_str = f" ({point})" if point is not None else ""
-                    alerts.append(f"🚨 *Value Discrepancy Found* ({sport.upper()} - {m_key})\n{matchup}\nTarget: {name}{point_str}\nBest: `{best_book}` ({best_val:+d} if best_val > 0 else best_val)\nWorst: `{worst_book}` ({worst_val:+d} if worst_val > 0 else worst_val)")
+                    # Fixed f-string syntax using native +d specifier
+                    alerts.append(
+                        f"🚨 *Value Discrepancy Found* ({sport.upper()} - {m_key})\n"
+                        f"{matchup}\n"
+                        f"Target: {name}{point_str}\n"
+                        f"Best: `{best_book}` ({best_val:+d})\n"
+                        f"Worst: `{worst_book}` ({worst_val:+d})"
+                    )
 
     if alerts:
-        # Iterate through all discovered discrepancies without arbitrary caps
         for alert in alerts:
             send_telegram(alert)
     else:
